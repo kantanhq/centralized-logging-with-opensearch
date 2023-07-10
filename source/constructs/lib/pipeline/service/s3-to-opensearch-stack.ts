@@ -29,6 +29,8 @@ import {
   aws_s3 as s3,
   aws_lambda as lambda,
   aws_ec2 as ec2,
+  aws_sns as sns,
+  aws_sns_subscriptions as sns_subscriptions,
   aws_sqs as sqs,
   aws_kms as kms,
   aws_lambda_event_sources as eventsources,
@@ -134,6 +136,8 @@ export interface S3toOpenSearchStackProps {
   readonly defaultCmkArn?: string;
 
   readonly solutionId: string;
+
+  readonly topicArn: string;
 }
 
 export class S3toOpenSearchStack extends Construct {
@@ -190,6 +194,7 @@ export class S3toOpenSearchStack extends Construct {
             new iam.ServicePrincipal("ec2.amazonaws.com"),
             new iam.ServicePrincipal("sqs.amazonaws.com"),
             new iam.ServicePrincipal("cloudwatch.amazonaws.com"),
+            new iam.ServicePrincipal("sns.amazonaws.com"),
           ],
         }),
       ],
@@ -268,7 +273,7 @@ export class S3toOpenSearchStack extends Construct {
         }
       ),
       compatibleRuntimes: [lambda.Runtime.PYTHON_3_9],
-      description: "Default Lambda layer for Log Pipeline",
+      description: "Default Lambda layer for Log Pipeline.",
     });
 
     // Create the Log Processor Lambda
@@ -436,13 +441,18 @@ export class S3toOpenSearchStack extends Construct {
     );
 
     // Add the S3 event on the log bucket with the target is sqs queue
-    logBucket.addEventNotification(
-      s3.EventType.OBJECT_CREATED,
-      new s3n.SqsDestination(logEventQueue),
-      {
-        prefix: props.logBucketPrefix,
-      }
-    );
+    // logBucket.addEventNotification(
+    //   s3.EventType.OBJECT_CREATED,
+    //   new s3n.SqsDestination(logEventQueue),
+    //   {
+    //     prefix: props.logBucketPrefix,
+    //   }
+    // );
+
+    // S3 to SNS subscription
+    const crossRegionTopic = sns.Topic.fromTopicArn(this, "CrossRegionTopic", props.topicArn);
+    crossRegionTopic.addSubscription(new sns_subscriptions.SqsSubscription(logEventQueue));
+
     // Only enable it in these scenarios
     //1.when deploy in current account
     //2.log_type is the Lambda or the RDS in cross account
