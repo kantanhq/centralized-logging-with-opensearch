@@ -241,11 +241,19 @@ def get_object_key(event) -> list[str]:
         keys = []
         events = []
 
+        logger.info(f"Original event: {event}")
+
         if "body" in event["Records"][0]:
             # this is a SQS event messages
             # extract the message body to get S3 events.
             for event_record in event["Records"]:
                 event = json.loads(event_record["body"])
+
+                # Handle SNS
+                if event.get("Type") == "Notification":
+                    message = json.loads(event["Message"])
+                    events.extend(message.get("Records", []))
+                    continue
                 # skip test event
                 if "Event" in event and event["Event"] == "s3:TestEvent":
                     logger.info("Test Message, do nothing...")
