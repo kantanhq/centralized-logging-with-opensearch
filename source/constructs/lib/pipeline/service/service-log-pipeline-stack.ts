@@ -326,6 +326,12 @@ export class ServiceLogPipelineStack extends Stack {
       });
       this.addToParamLabels("KMS-CMK ARN", defaultCmkArnParam.logicalId);
 
+      const topicArn = new CfnParameter(this, "crossRegionTopicArn", {
+        type: "String",
+        description: "Topic ARN for other region"
+      });
+      this.addToParamLabels("SNS Topic ARN", topicArn.logicalId);
+
       this.addToParamGroups(
         "Source Information",
         logBucketName.logicalId,
@@ -333,7 +339,8 @@ export class ServiceLogPipelineStack extends Stack {
         logSourceAccountId.logicalId,
         logSourceRegion.logicalId,
         logSourceAccountAssumeRole.logicalId,
-        defaultCmkArnParam.logicalId
+        defaultCmkArnParam.logicalId,
+        topicArn.logicalId
       );
 
       // Create S3 to OpenSearch Stack for service log pipeline
@@ -347,6 +354,7 @@ export class ServiceLogPipelineStack extends Stack {
         logSourceAccountId: logSourceAccountId.valueAsString,
         logSourceRegion: logSourceRegion.valueAsString,
         logSourceAccountAssumeRole: logSourceAccountAssumeRole.valueAsString,
+        topicArn: topicArn.valueAsString,
       };
 
       const pipelineStack = new S3toOpenSearchStack(
